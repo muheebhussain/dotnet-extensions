@@ -1,0 +1,32 @@
+using System.Collections.Generic;
+using System.Data;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+public class DataTableToListOfDictionariesJsonConverter : JsonConverter<DataTable>
+{
+    public override DataTable Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        // You only want to serialize, so you can throw a NotImplementedException for the Read method
+        throw new NotImplementedException("Deserialization of DataTable to a collection of dictionaries is not supported.");
+    }
+
+    public override void Write(Utf8JsonWriter writer, DataTable table, JsonSerializerOptions options)
+    {
+        writer.WriteStartArray();
+
+        foreach (DataRow row in table.Rows)
+        {
+            Dictionary<string, object> rowData = new();
+
+            foreach (DataColumn column in table.Columns)
+            {
+                rowData[column.ColumnName] = row[column] == DBNull.Value ? null : row[column];
+            }
+
+            JsonSerializer.Serialize(writer, rowData, options);
+        }
+
+        writer.WriteEndArray();
+    }
+}
