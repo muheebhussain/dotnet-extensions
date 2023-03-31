@@ -19,9 +19,10 @@ public class DataTableToListOfDictionariesJsonConverter : JsonConverter<DataTabl
         {
             Dictionary<string, object> rowData = new();
 
-            foreach (DataColumn column in table.Columns)
+           foreach (DataColumn column in table.Columns)
             {
-                rowData[column.ColumnName] = row[column] == DBNull.Value ? null : row[column];
+                string camelCaseColumnName = options.PropertyNamingPolicy.ConvertName(column.ColumnName);
+                rowData[camelCaseColumnName] = row[column] == DBNull.Value ? null : row[column];
             }
 
             JsonSerializer.Serialize(writer, rowData, options);
