@@ -1,0 +1,47 @@
+DECLARE @TableName NVARCHAR(128)
+DECLARE @Schema NVARCHAR(128) = 'dbo'
+DECLARE @Query NVARCHAR(MAX)
+DECLARE @InsertScript NVARCHAR(MAX)
+
+CREATE TABLE #InsertScripts
+(
+    TableName NVARCHAR(128),
+    InsertScript NVARCHAR(MAX)
+)
+
+DECLARE TableCursor CURSOR FOR
+SELECT TABLE_NAME
+FROM INFORMATION_SCHEMA.TABLES
+WHERE TABLE_SCHEMA = @Schema AND TABLE_TYPE = 'BASE TABLE'
+
+OPEN TableCursor
+
+FETCH NEXT FROM TableCursor INTO @TableName
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    SET @InsertScript = ''
+
+    SELECT @Query = 'DECLARE @sql NVARCHAR(MAX); '
+                  + 'SET @sql = N''''; '
+                  + 'WITH OrderedData AS (SELECT TOP 100 *, ROW_NUMBER() OVER (ORDER BY (SELECT NULL)) AS RN FROM ' + QUOTENAME(@Schema) + '.' + QUOTENAME(@TableName) + ' ORDER BY 1 DESC) '
+                  + 'SELECT @sql = @sql + '
+                  + '''INSERT INTO ' + QUOTENAME(@Schema) + '.' + QUOTENAME(@TableName) + ' (' + STUFF((SELECT '','' + QUOTENAME(COLUMN_NAME) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = ''' + @Schema + ''' AND TABLE_NAME = ''' + @TableName + ''' FOR XML PATH('''')),1,1,'''') + ') '
+                  + 'VALUES (''+ '
+                  + 'STUFF((SELECT '','' + QUOTENAME(CAST(' + QUOTENAME(COLUMN_NAME) + ' AS NVARCHAR(MAX)), ''''''''''''''') FROM OrderedData WHERE RN = X.RN FOR XML PATH('''')),1,1,'''') '
+                  + '+'')'' '
+                  + 'FROM OrderedData AS X; '
+                  + 'SELECT @sql;'
+
+    INSERT INTO #InsertScripts (TableName, InsertScript)
+    EXEC sp_executesql @Query, N'@TableName NVARCHAR(128)', @TableName = @TableName
+
+    FETCH NEXT FROM TableCursor INTO @TableName
+END
+
+CLOSE TableCursor
+DEALLOCATE TableCursor
+
+SELECT * FROM #InsertScripts
+
+DROP TABLE #InsertScripts
