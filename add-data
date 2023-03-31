@@ -1,0 +1,24 @@
+DECLARE @OutputFilePath VARCHAR(200) = 'C:\temp\insert_commands.sql'
+
+DECLARE @SqlCommand NVARCHAR(MAX) = ''
+
+SELECT @SqlCommand = @SqlCommand + 'SELECT TOP 100 * INTO #tmp_' + t.NAME + ' FROM ' + t.NAME + ';' + CHAR(13) +
+                           'EXEC sp_generate_inserts ''#tmp_' + t.NAME + ''', @owner=\'dbo\';' + CHAR(13) +
+                           'DROP TABLE #tmp_' + t.NAME + ';' + CHAR(13)
+FROM sys.tables t
+
+SET @SqlCommand = 'USE ' + DB_NAME() + ';' + CHAR(13) + @SqlCommand
+
+EXEC sp_executesql @SqlCommand
+
+EXEC xp_cmdshell 'sqlcmd -S SERVER_NAME -d ' + DB_NAME() + ' -E -i "' + @OutputFilePath + '" -o "' + @OutputFilePath + '.out"'```
+
+This query first sets the `@OutputFilePath` variable to the desired file path for the output file. It then declares a `@SqlCommand` variable to hold the SQL commands for generating the insert commands.
+
+The query then generates a `SELECT TOP 100 * INTO #tmp_table_name` command for each table in the database and appends it to `@SqlCommand`. It then generates a call to the `sp_generate_inserts` system stored procedure to generate insert commands for the temporary table created in the previous step, and appends that to `@SqlCommand` as well. Finally, it adds a `DROP TABLE #tmp_table_name` command to clean up the temporary table.
+
+The `sp_executesql` system stored procedure is then used to execute the generated SQL commands.
+
+Finally, the `xp_cmdshell` system stored procedure is used to execute the `sqlcmd` command-line utility to save the output to a file specified by the `@OutputFilePath` variable.
+
+Note that in order to use `xp_cmdshell`, you will need to enable it on your SQL Server instance and grant appropriate permissions to the user running the query. Also, you will need to replace `SERVER_NAME` with the name of your SQL Server instance in the `xp_cmdshell` command.
